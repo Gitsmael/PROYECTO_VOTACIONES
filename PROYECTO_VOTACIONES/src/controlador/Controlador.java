@@ -1,89 +1,183 @@
 package controlador;
 
-import java.awt.Color;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
+import org.hibernate.SessionFactory;
+import org.hibernate.cfg.Configuration;
+
+import hilos.HiloVotacion;
+import modelo.ComunidadHilos;
+import modelo.RangoHilos;
+import servicios.ServicioCalculoHilos;
+import servicios.InicializarPartidos;
 import vista.Vista;
 
 public class Controlador {
 
     private Vista vista;
-
-    // Comunidad seleccionada actualmente
     private String comunidadActual;
 
-    // Resultados simulados
-    private Map<String, Integer> resultados;
+    private SessionFactory sessionFactory;
 
     public Controlador(Vista vista) {
+
         this.vista = vista;
-        this.resultados = new HashMap<>();
+        sessionFactory = new Configuration().configure().buildSessionFactory();
 
-        inicializar();
+        inicializarSistema();
     }
 
     // ---------------------------------------
-    // Inicialización
+    // Inicialización general del sistema
     // ---------------------------------------
-    private void inicializar() {
+    private void inicializarSistema() {
 
-        // Botón volver al mapa
-        // (lo creamos en la vista, así que lo buscamos por texto)
-        // Alternativa mejor: hacer btnVolver público en la vista
-        // Aquí asumimos que el botón ya llama a mostrarPanel
+        // 1️⃣ Crear filas iniciales de partidos
+    	InicializarPartidos init = new InicializarPartidos(sessionFactory);
 
-        // Botón simular votaciones
-        // (no es público, así que lo simulamos desde aquí)
-        // 👉 Recomendación: hacerlo público si quieres más control
+        init.inicializarPartidos();
     }
 
     // ---------------------------------------
-    // Llamado desde la Vista al pulsar comunidad
+    // Selección de comunidad desde la vista
     // ---------------------------------------
     public void seleccionarComunidad(String nombreComunidad) {
         this.comunidadActual = nombreComunidad;
-
         vista.lblNombreCiudad.setText(nombreComunidad);
-
-        // Limpiar resultados anteriores
-        limpiarResultados();
     }
 
     // ---------------------------------------
-    // Simular votaciones
+    // Simulación REAL
     // ---------------------------------------
     public void simularVotaciones() {
-        if (comunidadActual == null) return;
 
-        Random r = new Random();
+        ServicioCalculoHilos calculo =
+                new ServicioCalculoHilos(sessionFactory);
 
-        resultados.put("X", r.nextInt(100));
-        resultados.put("Y", r.nextInt(100));
-        resultados.put("W", r.nextInt(100));
-        resultados.put("Z", r.nextInt(100));
+        List<ComunidadHilos> lista = calculo.calcularHilos();
 
-        actualizarBarras();
+        ExecutorService executor =
+                Executors.newFixedThreadPool(10);
+
+        for (ComunidadHilos comunidad : lista) {
+
+            for (RangoHilos rango : comunidad.getRangos()) {
+
+                for (int i = 0; i < rango.getNumeroHilos(); i++) {
+
+                    executor.execute(new HiloVotacion(
+                            sessionFactory,
+                            comunidad.getNombreComunidad(),
+                            rango.getRango()));
+                }
+            }
+        }
+
+        executor.shutdown();
+
+        try {
+            executor.awaitTermination(10, TimeUnit.MINUTES);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        cargarResultadosNacionales();
+    }
+    
+    
+    private void cargarResultadosNacionales() {
+
+        var session = sessionFactory.openSession();
+
+        var query = session.createQuery(
+                "select v.id.partidoPolitico, sum(v.totalVotos) " +
+                "from VotosComunidadPartido v " +
+                "group by v.id.partidoPolitico",
+                Object[].class
+        );
+
+        List<Object[]> datos = query.list();
+
+        Map<String, Integer> resultados = new HashMap<>();
+
+        for (Object[] fila : datos) {
+            String partido = (String) fila[0];
+            Long votos = (Long) fila[1];
+            resultados.put(partido, votos.intValue());
+        }
+
+        session.close();
+
+        System.out.println("RESULTADOS NACIONALES");
+
+        resultados.forEach((p, v) ->
+                System.out.println(p + " -> " + v));
     }
 
+
+
     // ---------------------------------------
-    // Actualizar barras de la vista
+    // Cargar resultados reales desde BD
     // ---------------------------------------
-    private void actualizarBarras() {
-        // Este método está preparado para cuando
-        // hagas las barras dinámicas (height variable)
-        // De momento es conceptual
-        // Ejemplo futuro:
-        //
+    private void cargarResultadosPorComunidad(String comunidad) {
+
+        var session = sessionFactory.openSession();
+
+        var query = session.createQuery(
+                "select v.id.partidoPolitico, sum(v.totalVotos) " +
+                "from VotosComunidadPartido v " +
+                "where v.id.nombreComunidad = :comunidad " +
+                "group by v.id.partidoPolitico",
+                Object[].class
+        );
+
+        query.setParameter("comunidad", comunidad);
+
+        List<Object[]> datos = query.list();
+
+        Map<String, Integer> resultados = new HashMap<>();
+
+        for (Object[] fila : datos) {
+            String partido = (String) fila[0];
+            Long votos = (Long) fila[1];
+            resultados.put(partido, votos.intValue());
+        }
+
+        session.close();
+
+        actualizarVista(resultados);
+    }
+
+
+    // ---------------------------------------
+    // Actualizar interfaz
+    // ---------------------------------------
+    private void actualizarVista(Map<String, Integer> resultados) {
+
+        // Ejemplo conceptual
+
+        System.out.println("Resultados en " + comunidadActual);
+
+        resultados.forEach((p, v) ->
+                System.out.println(p + " -> " + v));
+
         // vista.actualizarBarra("X", resultados.get("X"));
         // vista.actualizarBarra("Y", resultados.get("Y"));
+        // vista.actualizarBarra("W", resultados.get("W"));
+        // vista.actualizarBarra("Z", resultados.get("Z"));
     }
 
     // ---------------------------------------
-    // Limpiar resultados
+    // Cerrar recursos al finalizar
     // ---------------------------------------
-    private void limpiarResultados() {
-        resultados.clear();
+    public void cerrar() {
+        if (sessionFactory != null) {
+            sessionFactory.close();
+        }
     }
 }
