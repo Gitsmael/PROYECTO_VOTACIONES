@@ -16,6 +16,6 @@
 		<property name="hibernate.show_sql">true</property>
 		
 		<mapping resource="persistencias/PorcentajesRangoEdad.hbm.xml"/>
-        <mapping class="persistencias/VotosComunidadPartido.hbm.xml"/>
+        <mapping resource="persistencias/VotosComunidadPartido.hbm.xml"/>
     </session-factory>
 </hibernate-configuration>

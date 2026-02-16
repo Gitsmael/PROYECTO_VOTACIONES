@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Generated 13 feb 2026, 10:40:13 by Hibernate Tools 5.4.33.Final --><!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN" "http://www.hibernate.org/dtd/hibernate-mapping-3.0.dtd">
+<hibernate-mapping>
+    <class catalog="censo_por_comunidades" name="persistencias.VotosComunidadPartido" optimistic-lock="none" table="votos_comunidad_partido">
+	    <composite-id>
+	        <key-property name="nombreComunidad" column="NOMBRE_COMUNIDAD"/>
+	        <key-property name="partidoPolitico" column="PARTIDO_POLITICO"/>
+	    </composite-id>
+        <property name="votos19" type="int">
+            <column name="VOTOS_1_9" not-null="true">
+                <comment>Votos totales del rango de edad entre 1 y 9 años</comment>
+            </column>
+        </property>
+        <property name="votos1017" type="int">
+            <column name="VOTOS_10_17" not-null="true">
+                <comment>Votos totales del rango de edad entre 10 y 17 años</comment>
+            </column>
+        </property>
+        <property name="votos1825" type="int">
+            <column name="VOTOS_18_25" not-null="true">
+                <comment>Votos totales del rango de edad entre 18 y 25 años</comment>
+            </column>
+        </property>
+        <property name="votos2640" type="int">
+            <column name="VOTOS_26_40" not-null="true">
+                <comment>Votos totales del rango de edad entre 26 y 40 años</comment>
+            </column>
+        </property>
+        <property name="votos4165" type="int">
+            <column name="VOTOS_41_65" not-null="true">
+                <comment>Votos totales del rango de edad entre 41 y 65 años</comment>
+            </column>
+        </property>
+        <property name="votosMas66" type="int">
+            <column name="VOTOS_MAS_66" not-null="true">
+                <comment>Votos totales de habitantes mayores a 66 años</comment>
+            </column>
+        </property>
+        <property name="totalVotos" type="int">
+            <column name="TOTAL_VOTOS" not-null="true">
+                <comment>Numero total de votos a ese partido politico</comment>
+            </column>
+        </property>
+    </class>
+</hibernate-mapping>
