@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- Generated 13 feb 2026, 10:40:13 by Hibernate Tools 5.4.33.Final --><!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN" "http://www.hibernate.org/dtd/hibernate-mapping-3.0.dtd">
+<!-- Generated 16 feb 2026, 15:28:35 by Hibernate Tools 5.4.33.Final --><!DOCTYPE hibernate-mapping PUBLIC "-//Hibernate/Hibernate Mapping DTD 3.0//EN" "http://www.hibernate.org/dtd/hibernate-mapping-3.0.dtd">
 <hibernate-mapping>
     <class catalog="censo_por_comunidades" name="persistencias.VotosComunidadPartido" optimistic-lock="none" table="votos_comunidad_partido">
-	    <composite-id>
-	        <key-property name="nombreComunidad" column="NOMBRE_COMUNIDAD"/>
-	        <key-property name="partidoPolitico" column="PARTIDO_POLITICO"/>
-	    </composite-id>
+        <composite-id class="persistencias.VotosComunidadPartidoId" name="id">
+            <key-property name="nombreComunidad" type="string">
+                <column length="30" name="NOMBRE_COMUNIDAD"/>
+            </key-property>
+            <key-property name="partidoPolitico" type="string">
+                <column length="10" name="PARTIDO_POLITICO"/>
+            </key-property>
+        </composite-id>
         <property name="votos19" type="int">
             <column name="VOTOS_1_9" not-null="true">
                 <comment>Votos totales del rango de edad entre 1 y 9 años</comment>

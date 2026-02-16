@@ -10,6 +10,7 @@ import org.hibernate.query.Query;
 
 import persistencias.PorcentajesRangoedad;
 import persistencias.VotosComunidadPartido;
+import persistencias.VotosComunidadPartidoId;
 
 public class PruebaHibernate {
 
@@ -50,10 +51,11 @@ public class PruebaHibernate {
         Session session = sessionFactory.openSession();
         Transaction tx = session.beginTransaction();
 
-        VotosComunidadPartido voto = new VotosComunidadPartido();
+        VotosComunidadPartidoId id =
+                new VotosComunidadPartidoId(comunidad, partido);
 
-        voto.setNombreComunidad(comunidad);
-        voto.setPartidoPolitico(partido);
+        VotosComunidadPartido voto = new VotosComunidadPartido();
+        voto.setId(id);
 
         voto.setVotos19(0);
         voto.setVotos1017(0);
@@ -68,8 +70,9 @@ public class PruebaHibernate {
         tx.commit();
         session.close();
 
-        System.out.println("Fila insertada correctamente.");
+        System.out.println("Insert correcto");
     }
+
 
     // 3️⃣ Recuperar un voto por clave compuesta
     public void recuperarVoto(String comunidad, String partido) {
@@ -77,22 +80,23 @@ public class PruebaHibernate {
         Session session = sessionFactory.openSession();
         Transaction tx = session.beginTransaction();
 
+        VotosComunidadPartidoId id =
+                new VotosComunidadPartidoId(comunidad, partido);
+
         VotosComunidadPartido voto =
-                session.get(VotosComunidadPartido.class,
-                        new Object[]{comunidad, partido});
+                session.get(VotosComunidadPartido.class, id);
 
         if (voto != null) {
-            System.out.println("Registro encontrado:");
-            System.out.println("Comunidad: " + voto.getNombreComunidad());
-            System.out.println("Partido: " + voto.getPartidoPolitico());
+            System.out.println("Encontrado:");
             System.out.println("Total votos: " + voto.getTotalVotos());
         } else {
-            System.out.println("No se encontró el registro.");
+            System.out.println("No encontrado");
         }
 
         tx.commit();
         session.close();
     }
+
 
     // 4️⃣ Actualizar votos con HQL
     public void actualizarVoto(String comunidad, String partido) {
@@ -100,23 +104,22 @@ public class PruebaHibernate {
         Session session = sessionFactory.openSession();
         Transaction tx = session.beginTransaction();
 
-        Query query = session.createQuery(
-                "update VotosComunidadPartido v " +
-                "set v.votos1825 = v.votos1825 + 1, " +
-                "    v.totalVotos = v.totalVotos + 1 " +
-                "where v.nombreComunidad = :comunidad " +
-                "and v.partidoPolitico = :partido"
-        );
+        Query<?> query = session.createQuery(
+        	    "update VotosComunidadPartido v " +
+        	    "set v.votos1825 = v.votos1825 + 1, " +
+        	    "    v.totalVotos = v.totalVotos + 1 " +
+        	    "where v.id.nombreComunidad = :comunidad " +
+        	    "and v.id.partidoPolitico = :partido"
+        	);
 
-        query.setParameter("comunidad", comunidad);
-        query.setParameter("partido", partido);
+        	query.setParameter("comunidad", comunidad);
+        	query.setParameter("partido", partido);
+        	query.executeUpdate();
 
-        int filas = query.executeUpdate();
 
         tx.commit();
         session.close();
 
-        System.out.println("Filas actualizadas: " + filas);
     }
 
 
@@ -135,13 +138,12 @@ public class PruebaHibernate {
 
 		prueba.insertarVotosIniciales("Andalucia", "X");
 
-		/*
 		prueba.recuperarVoto("Andalucia", "X");
 
 		prueba.actualizarVoto("Andalucia", "X");
 
 		prueba.recuperarVoto("Andalucia", "X");
-		*/
+		
 		 sessionFactory.close(); 
 
 	}
