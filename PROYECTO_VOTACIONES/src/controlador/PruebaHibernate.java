@@ -22,130 +22,121 @@ public class PruebaHibernate {
 
     // 1️⃣ Leer todas las comunidades
     public void leerComunidades() {
+        try (Session session = sessionFactory.openSession()) {
+            Transaction tx = session.beginTransaction();
 
-        Session session = sessionFactory.openSession();
-        Transaction tx = session.beginTransaction();
+            List<PorcentajesRangoedad> lista =
+                    session.createQuery("FROM PorcentajesRangoedad", PorcentajesRangoedad.class)
+                           .list();
 
-        List<PorcentajesRangoedad> lista =
-                session.createQuery("FROM PorcentajesRangoedad", PorcentajesRangoedad.class)
-                       .list();
+            for (PorcentajesRangoedad p : lista) {
+                System.out.println("Comunidad: " + p.getNombreComunidad());
+                System.out.println("18-25: " + p.getRango1825() + "%");
+                System.out.println("26-40: " + p.getRango2640() + "%");
+                System.out.println("41-65: " + p.getRango4165() + "%");
+                System.out.println("+66: " + p.getRangoMas66() + "%");
+                System.out.println("Total habitantes: " + p.getTotalHabitantes());
+                System.out.println("-----------------------------------");
+            }
 
-        for (PorcentajesRangoedad p : lista) {
-
-            System.out.println("Comunidad: " + p.getNombreComunidad());
-            System.out.println("18-25: " + p.getRango1825() + "%");
-            System.out.println("26-40: " + p.getRango2640() + "%");
-            System.out.println("41-65: " + p.getRango4165() + "%");
-            System.out.println("+66: " + p.getRangoMas66() + "%");
-            System.out.println("Total habitantes: " + p.getTotalHabitantes());
-            System.out.println("-----------------------------------");
+            tx.commit();
         }
-
-        tx.commit();
-        session.close();
     }
 
     // 2️⃣ Insertar fila en VOTOS_COMUNIDAD_PARTIDO
     public void insertarVotosIniciales(String comunidad, String partido) {
+        try (Session session = sessionFactory.openSession()) {
+            Transaction tx = session.beginTransaction();
 
-        Session session = sessionFactory.openSession();
-        Transaction tx = session.beginTransaction();
+            VotosComunidadPartidoId id = new VotosComunidadPartidoId(comunidad, partido);
 
-        VotosComunidadPartidoId id =
-                new VotosComunidadPartidoId(comunidad, partido);
+            VotosComunidadPartido voto = new VotosComunidadPartido();
+            voto.setId(id);
+            voto.setVotos19(0);
+            voto.setVotos1017(0);
+            voto.setVotos1825(0);
+            voto.setVotos2640(0);
+            voto.setVotos4165(0);
+            voto.setVotosMas66(0);
+            voto.setTotalVotos(0);
 
-        VotosComunidadPartido voto = new VotosComunidadPartido();
-        voto.setId(id);
+            session.save(voto);
+            tx.commit();
 
-        voto.setVotos19(0);
-        voto.setVotos1017(0);
-        voto.setVotos1825(0);
-        voto.setVotos2640(0);
-        voto.setVotos4165(0);
-        voto.setVotosMas66(0);
-        voto.setTotalVotos(0);
-
-        session.save(voto);
-
-        tx.commit();
-        session.close();
-
-        System.out.println("Insert correcto");
+            System.out.println("Insert correcto");
+        }
     }
-
 
     // 3️⃣ Recuperar un voto por clave compuesta
     public void recuperarVoto(String comunidad, String partido) {
+        try (Session session = sessionFactory.openSession()) {
+            Transaction tx = session.beginTransaction();
 
-        Session session = sessionFactory.openSession();
-        Transaction tx = session.beginTransaction();
+            VotosComunidadPartidoId id = new VotosComunidadPartidoId(comunidad, partido);
+            VotosComunidadPartido voto = session.get(VotosComunidadPartido.class, id);
 
-        VotosComunidadPartidoId id =
-                new VotosComunidadPartidoId(comunidad, partido);
+            if (voto != null) {
+                System.out.println("Encontrado:");
+                System.out.println("Total votos: " + voto.getTotalVotos());
+            } else {
+                System.out.println("No encontrado");
+            }
 
-        VotosComunidadPartido voto =
-                session.get(VotosComunidadPartido.class, id);
-
-        if (voto != null) {
-            System.out.println("Encontrado:");
-            System.out.println("Total votos: " + voto.getTotalVotos());
-        } else {
-            System.out.println("No encontrado");
+            tx.commit();
         }
-
-        tx.commit();
-        session.close();
     }
-
 
     // 4️⃣ Actualizar votos con HQL
     public void actualizarVoto(String comunidad, String partido) {
+        try (Session session = sessionFactory.openSession()) {
+            Transaction tx = session.beginTransaction();
 
-        Session session = sessionFactory.openSession();
-        Transaction tx = session.beginTransaction();
+            Query<?> query = session.createQuery(
+                "update VotosComunidadPartido v " +
+                "set v.votos1825 = v.votos1825 + 1, " +
+                "    v.totalVotos = v.totalVotos + 1 " +
+                "where v.id.nombreComunidad = :comunidad " +
+                "and v.id.partidoPolitico = :partido"
+            );
 
-        Query<?> query = session.createQuery(
-        	    "update VotosComunidadPartido v " +
-        	    "set v.votos1825 = v.votos1825 + 1, " +
-        	    "    v.totalVotos = v.totalVotos + 1 " +
-        	    "where v.id.nombreComunidad = :comunidad " +
-        	    "and v.id.partidoPolitico = :partido"
-        	);
+            query.setParameter("comunidad", comunidad);
+            query.setParameter("partido", partido);
+            query.executeUpdate();
 
-        	query.setParameter("comunidad", comunidad);
-        	query.setParameter("partido", partido);
-        	query.executeUpdate();
-
-
-        tx.commit();
-        session.close();
-
+            tx.commit();
+        }
     }
 
+    // 5️⃣ Método main
+    public static void main(String[] args) {
 
-	public static void main(String[] args) {
-		// TODO Auto-generated method stub
-		
-		SessionFactory sessionFactory=null;
-		Configuration configuration = new Configuration();
-		configuration.configure();
-		sessionFactory = configuration.buildSessionFactory();
-		
-		PruebaHibernate prueba = new PruebaHibernate(sessionFactory);
+        SessionFactory sessionFactory = null;
 
+        try {
+            // Inicializar Hibernate
+            Configuration configuration = new Configuration();
+            configuration.configure("src/hibernate.cfg.xml"); // tu ruta específica
+            sessionFactory = configuration.buildSessionFactory();
+            
+            
 
-		prueba.leerComunidades();
+            // Crear objeto de prueba
+            PruebaHibernate prueba = new PruebaHibernate(sessionFactory);
 
-		prueba.insertarVotosIniciales("Andalucia", "X");
+            // Operaciones de prueba
+            prueba.leerComunidades();
+            prueba.insertarVotosIniciales("Andalucia", "X");
+            prueba.recuperarVoto("Andalucia", "X");
+            prueba.actualizarVoto("Andalucia", "X");
+            prueba.recuperarVoto("Andalucia", "X");
 
-		prueba.recuperarVoto("Andalucia", "X");
-
-		prueba.actualizarVoto("Andalucia", "X");
-
-		prueba.recuperarVoto("Andalucia", "X");
-		
-		 sessionFactory.close(); 
-
-	}
-
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            // Cerrar SessionFactory de forma segura
+            if (sessionFactory != null) {
+                sessionFactory.close();
+            }
+        }
+    }
 }
