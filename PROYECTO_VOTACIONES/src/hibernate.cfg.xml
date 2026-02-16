@@ -4,18 +4,19 @@
 		"http://www.hibernate.org/dtd/hibernate-configuration-3.0.dtd">
 <hibernate-configuration>
     <session-factory>
-    <property name="hibernate.connection.driver_class">com.mysql.jdbc.Driver</property>
-    <property name="hibernate.connection.password">root</property>
-    <property name="hibernate.connection.url">jdbc:mysql://localhost:3306/censo_por_comunidades?serverTimezone=UTC</property>
-    <property name="hibernate.connection.username">root</property>
-    <property name="hibernate.dialect">org.hibernate.dialect.MySQLDialect</property>
-    
-    <property name="hibernate.search.autoregister_listeners">true</property>
-	<property name="hibernate.validator.apply_to_ddl">false</property>
-	<property name="hibernate.current_session_context_class">thread</property>
-	<property name="hibernate.show_sql">true</property>
-	
-	<mapping resource="persistencias/PorcentajesRangoEdad.hbm.xml"/>
-    <mapping resource="persistencias/VotosComunidadPartido.hbm.xml"/>
+        <!-- Propiedades de conexión a la base de datos -->
+        <property name="hibernate.connection.driver_class">com.mysql.cj.jdbc.Driver</property>
+        <property name="hibernate.connection.url">jdbc:mysql://localhost:3306/censo_por_comunidades?serverTimezone=UTC</property>
+        <property name="hibernate.connection.username">root</property>
+        <property name="hibernate.connection.password">root</property>
+        <property name="hibernate.dialect">org.hibernate.dialect.MySQLDialect</property>
+        
+        <!-- Propiedades de depuración y contexto -->
+        <property name="hibernate.show_sql">true</property>
+        <property name="hibernate.current_session_context_class">thread</property>
+        
+        <!-- MAPEOS FÍSICOS: Usamos 'file' para evitar errores de Classpath en el IDE -->
+        <mapping file="src/persistencias/PorcentajesRangoedad.hbm.xml"/>
+        <mapping file="src/persistencias/VotosComunidadPartido.hbm.xml"/>
     </session-factory>
 </hibernate-configuration>

@@ -6,7 +6,11 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.io.File;
 
+import javax.swing.SwingUtilities;
+
+import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
 
@@ -19,174 +23,130 @@ import vista.Vista;
 
 public class Controlador {
 
-    private Vista vista;
-    private String comunidadActual;
+	private Vista vista;
+	private SessionFactory sessionFactory;
 
-    private SessionFactory sessionFactory;
+	public Controlador(Vista vista) {
+		this.vista = vista;
+		File configFile = new File("src/hibernate.cfg.xml");
+		if (configFile.exists()) {
+			sessionFactory = new Configuration().configure(configFile).buildSessionFactory();
+		} else {
+			sessionFactory = new Configuration().configure().buildSessionFactory();
+		}
+		inicializarSistema();
+	}
 
-    public Controlador(Vista vista) {
+	private void inicializarSistema() {
+		InicializarPartidos init = new InicializarPartidos(sessionFactory);
+		init.inicializarPartidos();
+	}
 
-        this.vista = vista;
-        sessionFactory = new Configuration().configure().buildSessionFactory();
+	public void seleccionarComunidad(String nombreComunidad) {
+		// La vista ahora llama directamente a actualizarGraficoDetallado al entrar
+	}
 
-        inicializarSistema();
-    }
+	public void simularVotaciones() {
+		new Thread(() -> {
+			ServicioCalculoHilos calculo = new ServicioCalculoHilos(sessionFactory);
+			List<ComunidadHilos> lista = calculo.calcularHilos();
+			ExecutorService executor = Executors.newFixedThreadPool(10);
+			for (ComunidadHilos comunidad : lista) {
+				for (RangoHilos rango : comunidad.getRangos()) {
+					String r = rango.getRango();
+					if (r.contains("1 a 9") || r.contains("10 a 17")) {
+						continue;
+					}
+					for (int i = 0; i < rango.getNumeroHilos(); i++) {
+						executor.execute(new HiloVotacion(sessionFactory, comunidad.getNombreComunidad(), r));
+					}
+				}
+			}
+			executor.shutdown();
+			try {
+				executor.awaitTermination(10, TimeUnit.MINUTES);
+				cargarResultadosNacionales();
+				actualizarColoresMapaPorComunidad();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}).start();
+	}
 
-    // ---------------------------------------
-    // Inicialización general del sistema
-    // ---------------------------------------
-    private void inicializarSistema() {
+	public void actualizarGraficoDetallado(String comunidad, String rangoSeleccionado) {
+		new Thread(() -> {
+			try (Session session = sessionFactory.openSession()) {
+				String columna;
+				switch (rangoSeleccionado) {
+					case "18 a 25 años": columna = "votos1825"; break;
+					case "24 a 40 años": columna = "votos2640"; break;
+					case "41 a 65 años": columna = "votos4165"; break;
+					case "más de 66 años": columna = "votosMas66"; break;
+					case "Votaciones Globales": columna = "totalVotos"; break;
+					default: return;
+				}
 
-        // 1️⃣ Crear filas iniciales de partidos
-    	InicializarPartidos init = new InicializarPartidos(sessionFactory);
+				String hql;
+				if (comunidad.toLowerCase().contains("castilla") && comunidad.toLowerCase().contains("mancha")) {
+					hql = "select v.id.partidoPolitico, sum(v." + columna + ") " +
+					      "from VotosComunidadPartido v " +
+					      "where v.id.nombreComunidad like '%Castilla%Mancha%' " +
+					      "group by v.id.partidoPolitico";
+				} else {
+					hql = "select v.id.partidoPolitico, sum(v." + columna + ") " +
+					      "from VotosComunidadPartido v " +
+					      "where v.id.nombreComunidad = :comunidad " +
+					      "group by v.id.partidoPolitico";
+				}
 
-        init.inicializarPartidos();
-    }
+				var query = session.createQuery(hql, Object[].class);
+				if (!comunidad.toLowerCase().contains("mancha")) {
+					query.setParameter("comunidad", comunidad);
+				}
+				
+				List<Object[]> datos = query.list();
+				Map<String, Integer> resultados = new HashMap<>();
+				for (Object[] fila : datos) {
+					resultados.put((String) fila[0], ((Number) fila[1]).intValue());
+				}
+				SwingUtilities.invokeLater(() -> vista.actualizarGraficoDetallado(resultados));
+			} catch (Exception e) {
+				System.err.println("Error al cargar detalles: " + e.getMessage());
+			}
+		}).start();
+	}
 
-    // ---------------------------------------
-    // Selección de comunidad desde la vista
-    // ---------------------------------------
-    public void seleccionarComunidad(String nombreComunidad) {
-        this.comunidadActual = nombreComunidad;
-        vista.lblNombreCiudad.setText(nombreComunidad);
+	private void actualizarColoresMapaPorComunidad() {
+		try (Session session = sessionFactory.openSession()) {
+			String hql = "select v.id.nombreComunidad, v.id.partidoPolitico " +
+			             "from VotosComunidadPartido v " +
+			             "where v.totalVotos = (select max(v2.totalVotos) " +
+			             "                     from VotosComunidadPartido v2 " +
+			             "                     where v2.id.nombreComunidad = v.id.nombreComunidad)";
+			List<Object[]> resultados = session.createQuery(hql, Object[].class).list();
+			for (Object[] fila : resultados) {
+				String comunidad = (String) fila[0];
+				String partido = (String) fila[1];
+				SwingUtilities.invokeLater(() -> vista.actualizarColorComunidad(comunidad, partido));
+			}
+		} catch (Exception e) {
+			System.err.println("Error al actualizar colores: " + e.getMessage());
+		}
+	}
 
-        cargarResultadosPorComunidad(nombreComunidad);
-    }
-
-    // ---------------------------------------
-    // Simulación REAL
-    // ---------------------------------------
-    public void simularVotaciones() {
-
-        System.out.println("Simulación nacional iniciada");
-
-        ServicioCalculoHilos calculo =
-                new ServicioCalculoHilos(sessionFactory);
-
-        List<ComunidadHilos> lista = calculo.calcularHilos();
-
-        ExecutorService executor =
-                Executors.newFixedThreadPool(10);
-
-        for (ComunidadHilos comunidad : lista) {
-
-            for (RangoHilos rango : comunidad.getRangos()) {
-
-                for (int i = 0; i < rango.getNumeroHilos(); i++) {
-
-                    executor.execute(new HiloVotacion(
-                            sessionFactory,
-                            comunidad.getNombreComunidad(),
-                            rango.getRango()));
-                }
-            }
-        }
-
-        executor.shutdown();
-
-        try {
-            executor.awaitTermination(10, TimeUnit.MINUTES);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-        System.out.println("Simulación nacional finalizada");
-    }
-
-    
-    
-    private void cargarResultadosNacionales() {
-
-        var session = sessionFactory.openSession();
-
-        var query = session.createQuery(
-                "select v.id.partidoPolitico, sum(v.totalVotos) " +
-                "from VotosComunidadPartido v " +
-                "group by v.id.partidoPolitico",
-                Object[].class
-        );
-
-        List<Object[]> datos = query.list();
-
-        Map<String, Integer> resultados = new HashMap<>();
-
-        for (Object[] fila : datos) {
-            String partido = (String) fila[0];
-            Long votos = (Long) fila[1];
-            resultados.put(partido, votos.intValue());
-        }
-
-        session.close();
-
-        System.out.println("RESULTADOS NACIONALES");
-
-        resultados.forEach((p, v) ->
-                System.out.println(p + " -> " + v));
-    }
-
-
-
-    // ---------------------------------------
-    // Cargar resultados reales desde BD
-    // ---------------------------------------
-    private void cargarResultadosPorComunidad(String comunidad) {
-
-        var session = sessionFactory.openSession();
-
-        var query = session.createQuery(
-                "select v.id.partidoPolitico, sum(v.totalVotos) " +
-                "from VotosComunidadPartido v " +
-                "where v.id.nombreComunidad = :comunidad " +
-                "group by v.id.partidoPolitico",
-                Object[].class
-        );
-
-        query.setParameter("comunidad", comunidad);
-
-        List<Object[]> datos = query.list();
-
-        Map<String, Integer> resultados = new HashMap<>();
-
-        for (Object[] fila : datos) {
-            String partido = (String) fila[0];
-            Long votos = (Long) fila[1];
-            resultados.put(partido, votos.intValue());
-        }
-
-        session.close();
-
-        actualizarVista(resultados);
-    }
-
-
-    // ---------------------------------------
-    // Actualizar interfaz
-    // ---------------------------------------
-    private void actualizarVista(Map<String, Integer> resultados) {
-
-        // Ejemplo conceptual
-
-        System.out.println("Resultados en " + comunidadActual);
-
-        resultados.forEach((p, v) ->
-                System.out.println(p + " -> " + v));
-
-        // vista.actualizarBarra("X", resultados.get("X"));
-        // vista.actualizarBarra("Y", resultados.get("Y"));
-        // vista.actualizarBarra("W", resultados.get("W"));
-        // vista.actualizarBarra("Z", resultados.get("Z"));
-    }
-
-    // ---------------------------------------
-    // Cerrar recursos al finalizar
-    // ---------------------------------------
-    public void cerrar() {
-        if (sessionFactory != null) {
-            sessionFactory.close();
-        }
-    }
-    
-    
-    
-    
+	private void cargarResultadosNacionales() {
+		try (Session session = sessionFactory.openSession()) {
+			String hql = "select v.id.partidoPolitico, sum(v.totalVotos) " +
+			             "from VotosComunidadPartido v " +
+			             "group by v.id.partidoPolitico";
+			List<Object[]> datos = session.createQuery(hql, Object[].class).list();
+			Map<String, Integer> resultados = new HashMap<>();
+			for (Object[] fila : datos) {
+				resultados.put((String) fila[0], ((Number) fila[1]).intValue());
+			}
+			SwingUtilities.invokeLater(() -> vista.actualizarGraficoPrincipal(resultados));
+		} catch (Exception e) {
+			System.err.println("Error al cargar nacionales: " + e.getMessage());
+		}
+	}
 }
