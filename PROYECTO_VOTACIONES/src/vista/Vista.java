@@ -29,6 +29,12 @@ public class Vista extends JFrame {
 
     // Componentes compartidos
     public JLabel lblNombreCiudad;
+    private Controlador controlador;
+    
+    public void setControlador(Controlador controlador) {
+        this.controlador = controlador;
+    }
+
 
     // -------------------------
     // CONSTRUCTOR
@@ -81,8 +87,8 @@ public class Vista extends JFrame {
         // BOTONES POR COMUNIDAD (coordenadas aproximadas)
         crearComunidad(360, 280, "Madrid", panelMapa);
         crearComunidad(320, 500, "Andalucía", panelMapa);
-        crearComunidad(570, 170, "Cataluña", panelMapa);
-        crearComunidad(500, 350, "Com. Valenciana", panelMapa);
+        crearComunidad(570, 170, "Catalunia", panelMapa);
+        crearComunidad(500, 350, "Comunidad Valenciana", panelMapa);
         crearComunidad(200, 100, "Galicia", panelMapa);
         crearComunidad(260, 360, "Extremadura", panelMapa);
         crearComunidad(380, 360, "Castilla-La Mancha", panelMapa);
@@ -94,8 +100,8 @@ public class Vista extends JFrame {
         crearComunidad(350, 40, "Cantabria", panelMapa);
         crearComunidad(270, 40, "Asturias", panelMapa);
         crearComunidad(450, 500, "Murcia", panelMapa);
-        crearComunidad(630, 350,"Islas Baleares",panelMapa);
-        crearComunidad(100, 650, "Islas Canarias",panelMapa);
+        crearComunidad(630, 350,"Baleares",panelMapa);
+        crearComunidad(100, 650, "Canarias",panelMapa);
         crearComunidad(300,640, "Ceuta", panelMapa);
         crearComunidad(400,660, "Melilla", panelMapa);
 
@@ -110,6 +116,12 @@ public class Vista extends JFrame {
         JButton btnSimular = new JButton("SIMULAR VOTACIONES");
         btnSimular.setBounds(90, 20, 230, 40);
         panelResultados.add(btnSimular);
+        
+        btnSimular.addActionListener(e -> {
+            if (controlador != null) {
+                controlador.simularVotaciones();
+            }
+        });
 
         JLabel lblResultados = new JLabel("RESULTADOS GENERALES");
         lblResultados.setBounds(90, 82, 230, 30);
@@ -164,9 +176,15 @@ public class Vista extends JFrame {
         btn.setOpaque(true);
 
         btn.addActionListener(e -> {
+
+            if (controlador != null) {
+                controlador.seleccionarComunidad(nombre);
+            }
+
             lblNombreCiudad.setText(nombre);
             mostrarPanel(PANEL_INFO);
         });
+
 
         // LABEL CON NOMBRE
         JLabel lbl = new JLabel(nombre);
@@ -206,10 +224,12 @@ public class Vista extends JFrame {
     public static void main(String[] args) {
         try {
             Vista frame = new Vista();
-            new Controlador(frame);
+            Controlador controlador = new Controlador(frame);
+            frame.setControlador(controlador);
             frame.setVisible(true);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
 }

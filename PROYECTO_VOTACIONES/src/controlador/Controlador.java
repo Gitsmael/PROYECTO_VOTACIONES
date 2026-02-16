@@ -49,12 +49,16 @@ public class Controlador {
     public void seleccionarComunidad(String nombreComunidad) {
         this.comunidadActual = nombreComunidad;
         vista.lblNombreCiudad.setText(nombreComunidad);
+
+        cargarResultadosPorComunidad(nombreComunidad);
     }
 
     // ---------------------------------------
     // Simulación REAL
     // ---------------------------------------
     public void simularVotaciones() {
+
+        System.out.println("Simulación nacional iniciada");
 
         ServicioCalculoHilos calculo =
                 new ServicioCalculoHilos(sessionFactory);
@@ -86,8 +90,9 @@ public class Controlador {
             e.printStackTrace();
         }
 
-        cargarResultadosNacionales();
+        System.out.println("Simulación nacional finalizada");
     }
+
     
     
     private void cargarResultadosNacionales() {
@@ -180,4 +185,8 @@ public class Controlador {
             sessionFactory.close();
         }
     }
+    
+    
+    
+    
 }
